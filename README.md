@@ -3,12 +3,11 @@ convert audio files from utau to singular aliases files.
 
 ## Installation
 
-1. Clone or download the file
+1. Clone the repository or download the file
 2. Install required Python packages(using system packages as example):
 
 ```bash
-
-# arch( btw):
+# arch( btw ):
 sudo pacman -S python-pydub
 
 # Ubuntu/Debian
@@ -16,6 +15,7 @@ sudo apt install python-pydub
 
 # Fedora
 sudo dnf install python-pydub
+
 ```
 
 ## Usage
@@ -38,7 +38,7 @@ teto english voicebank( the one i do care about) as example:
 
 3. Run the script:
 ```bash
-python cut.py
+python3 cut.py
 ```
 
 4. Find your converted files in the new `mp3_cut/` folder:
