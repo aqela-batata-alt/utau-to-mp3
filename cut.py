@@ -62,7 +62,7 @@ if __name__ == "__main__":
     for i, entry in enumerate(oto_data):
         audio = AudioSegment.from_wav(entry['filename'])
         start_time = entry['offset']  # milliseconds
-        end_time = get_duration_pydub(entry['filename']) - entry['cutoff']    # milliseconds
+        end_time = get_duration_pydub(entry['filename']) + entry['cutoff']    # milliseconds
         trimmed_audio = audio[start_time:end_time]
         trimmed_audio.export(f"mp3_cut/{entry['alias']}.mp3", format="mp3")
 
