@@ -1,6 +1,6 @@
 from pydub import AudioSegment
 import os
-
+import sys
 
 
 def get_duration_pydub(file_path):
@@ -57,12 +57,20 @@ def parse_oto_ini_with_types(file_path):
     return entries
 
 if __name__ == "__main__":
-    oto_data = parse_oto_ini_with_types("oto.ini")
-    os.mkdir("mp3_cut")
-    for i, entry in enumerate(oto_data):
-        audio = AudioSegment.from_wav(entry['filename'])
-        start_time = entry['offset']  # milliseconds
-        end_time = get_duration_pydub(entry['filename']) + entry['cutoff']    # milliseconds
-        trimmed_audio = audio[start_time:end_time]
-        trimmed_audio.export(f"mp3_cut/{entry['alias']}.mp3", format="mp3")
+    for extension in sys.argv:
+        if extension == "cut.py":
+            pass
+        else:
+            oto_data = parse_oto_ini_with_types("oto.ini")
+            os.mkdir(f"{extension}_cut")
+            for entry in oto_data:
+                if '-' in list(entry['alias'])[0]:
+                    pass
+                else:
+                    audio = AudioSegment.from_wav(entry['filename'])
+                    start_time = entry['offset']  # milliseconds
+                    end_time = get_duration_pydub(entry['filename']) + entry['cutoff']    # milliseconds
+                    trimmed_audio = audio[start_time:end_time]
+                    trimmed_audio.export(f"{extension}_cut/{entry['alias']}.{extension}", format=f'{extension}')
+        
 
