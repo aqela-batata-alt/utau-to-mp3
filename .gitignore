@@ -1,0 +1,5 @@
+# Teto voicebanks can not be redistributed, keep them local
+voicebanks/
+*.zip
+*_cut/
+__pycache__/
