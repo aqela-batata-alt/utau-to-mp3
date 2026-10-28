@@ -1,12 +1,14 @@
 """
 Builds teto.csv: every pt-BR syllable we can make with Teto, pointing to the
 cut file that sounds the most like it in a Brasília/Goiás accent
-("ti" is [tʃi], "rr" and a coda "r" are the throat [h], a coda "l" is [w], ...).
+("ti" is [tʃi], "rr" and a word final "r" are the throat [h], an "r" closing a syllable in the middle
+of the word is the goiano [ɻ], a coda "l" is [w], ...).
 
 Sounds that have to be glued to their neighbours carry LINK on the glued side:
     ¨ai  -> starts on the "a" the previous syllable ended with, then goes to "i"
     ¨as  -> starts on the "a" the previous syllable ended with, ends in "s" + silence
     ¨a   -> starts on the "a" the previous syllable ended with, fades to silence
+    ¨ar¨ -> starts on the "a" the previous syllable ended with, ends in an "r" that goes into the next one
 """
 import csv
 import cut
@@ -116,9 +118,12 @@ CODAS = {
     'z': ('s', 's', 's', 's'),       # "paz" is [pas]
     'l': ('w', 'w', 'w', 'w'),       # "sal" is [saw]
 }
-# the coda "r" is the throat one, [h] ("mar" [mah]). the english bank only has [h] before a vowel,
+# at the end of a word the "r" is the throat one, [h] ("mar" [mah]). the english bank only has [h] before a vowel,
 # but the extra bank has every vowel ending in a breath ("ab -"), and that's exactly it
 R_CODA = ('h', 'h', 'h')  # IPA, X-SAMPA, english spelling
+# in the middle of a word it's the goiano one, [ɻ] ("porta" [ˈpɔɻtɐ]): the english "A r" (no "-") is a vowel
+# going into an r that keeps going into the next sound
+R_GOIANO = ('ɻ', 'r\\`', 'r')
 # word final nasals -> (IPA, X-SAMPA, english spelling, {english bank vowel before "N-": fit})
 NASALS = {
     'ã': ('ɐ̃', '6~', 'ung', {'V': 3, 'A': 2}),
@@ -261,6 +266,10 @@ def rows(outputs):
         if filename:
             yield (LINK + vowel + 'r', LINK + v_english + R_CODA[2],
                    LINK + v_ipa + R_CODA[0], LINK + v_xsampa + R_CODA[1], filename)
+        filename = best([(fit, 'english', f"{en_vowel} r") for en_vowel, fit in EN_VOWEL_FIT[vowel].items()], outputs)
+        if filename:
+            yield (LINK + vowel + 'r' + LINK, LINK + v_english + R_GOIANO[2] + LINK,
+                   LINK + v_ipa + R_GOIANO[0] + LINK, LINK + v_xsampa + R_GOIANO[1] + LINK, filename)
 
     # ...and the nasal ones: "¨an", "¨ão", "¨em"...
     for rime, (n_ipa, n_xsampa, n_english, fits) in NASALS.items():

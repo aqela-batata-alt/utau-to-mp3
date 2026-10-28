@@ -314,8 +314,13 @@ class Planner:
             last = None
         elif codas:
             ending = codas.pop(0)
-            sound = {'s': 's', 'ɾ': 'h', 'l': 'w'}[ending]                  # "mar" is [mah], the throat r
-            pieces.append((self.find(LINK + v + sound for v in VARIANTS.get(last, [last])), 'r' if ending == 'ɾ' else 'coda'))
+            vowels = VARIANTS.get(last, [last])
+            if ending == 'ɾ' and not word_end:
+                # in the middle of the word it's the goiano r, "porta" [ˈpɔɻtɐ], and it goes into the next syllable
+                pieces.append((self.find(LINK + v + 'ɻ' + LINK for v in vowels), 'coda'))
+            else:
+                sound = {'s': 's', 'ɾ': 'h', 'l': 'w'}[ending]              # "mar" is [mah], the throat r
+                pieces.append((self.find(LINK + v + sound for v in vowels), 'r' if ending == 'ɾ' else 'coda'))
             last = None
         for coda in codas:
             if coda == 's':

@@ -111,12 +111,14 @@ Makes `teto.csv` for the text to speech: every pt-BR syllable Teto can say, with
   so don't guess it like i did ("roído" came out as "rro-o" because of that).
 - When more than one file could be the syllable, it picks the one closest to Brazilian Portuguese with the
   Brasília/Goiás accent: "ti"/"di" are [tʃi]/[dʒi], "rr" is [h], "r" between vowels is the tap [ɾ] (japanese ら is perfect for that),
-  coda "r" is the throat [h] (it comes from the `extra` bank, a vowel ending in a breath is exactly that), coda "l" is [w], coda "s" is [s] (not the carioca [ʃ]), and a final unstressed "e"/"o" is [ɪ]/[ʊ].
+  coda "r" is the goiano [ɻ] in the middle of a word and the throat [h] at the end of it (that one comes from the `extra` bank,
+  a vowel ending in a breath is exactly that), coda "l" is [w], coda "s" is [s] (not the carioca [ʃ]), and a final unstressed "e"/"o" is [ɪ]/[ʊ].
   Closed e/o come from the japanese bank, open é/ó, "u" and the consonants japanese doesn't have (l, f, v, ʃ, ʒ...) from the english one.
 - `¨` (the trema, it's dead in portuguese anyway) marks a sound that has to be glued to the previous syllable:
   - `¨ai`: starts on the "a" the last syllable ended with, slides into "i";
   - `¨as`, `¨ar`, `¨ão`...: the end of a word, starts on the vowel of the last syllable;
-  - `¨a`: the vowel fading out at the end of a word.
+  - `¨a`: the vowel fading out at the end of a word;
+  - `¨ar¨`: `¨` on both sides, it also glues to the next syllable (the goiano r in the middle of a word: "porta" = `po|¨or¨|ta`).
 
   So "pão" is `pa` + `¨ão`, and "gatos" is `ga` + `to` + `¨os`.
 - The plain syllables stop while the vowel is still sounding (that's how UTAU wants them), so overlap/crossfade them a bit instead of just sticking them together.
@@ -144,7 +146,8 @@ What it does to sound like someone from Brasília/Goiás and not like a GPS:
   and finds the stressed one (by the accent, or by how the word ends);
 - reads it like we talk, not like we write: final unstressed "e"/"o" become [ɪ]/[ʊ] ("leite" = lei|ti, "gato" = ga|tu),
   "de"/"que"/"o" lean on the next word ([dʒɪ], [kɪ], [ʊ]), "t"/"d" before [i] are [tʃ]/[dʒ], "s" between vowels is [z], "r" at the start is [h],
-  "ou" is just [o], and "r" at the end of a syllable is the throat one ("mar" [mah], "porta" [ˈpɔhtɐ]);
+  "ou" is just [o], and an "r" closing a syllable is the goiano [ɻ] in the middle of the word ("porta" [ˈpɔɻtɐ], `¨or¨` in the CSV)
+  and the throat [h] at the end of it ("mar" [mah], `¨ar`);
 - the "r"/"rr" at the start of a syllable gets a real breath before it (`rr¨` in the CSV, the `extra` bank's 息1),
   because the h of は/ほ lasts 20 ms and "rato" came out as "ato";
 - a stressed vowel right after another vowel gets its own sound ("roído" = rro|í|du, "saída" = sa|í|da),
