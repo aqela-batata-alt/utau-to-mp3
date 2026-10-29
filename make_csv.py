@@ -15,6 +15,7 @@ import cut
 
 LINK = '¨'  # the trema is dead in pt-BR orthography, so it's free real estate
 CSV_FILE = 'teto.csv'
+UNITS_FILE = 'units.csv'
 ALL = 'aeéioóu'
 
 # pt-BR vowel -> (IPA, X-SAMPA, english spelling)
@@ -69,7 +70,7 @@ JP_KANA = {
     't': ['た', 'てぃ', 'とぅ', 'て', 'と'],
     'tɕ': ['ちゃ', 'ち', 'ちゅ', 'ちぇ', 'ちょ'],
     'd': ['だ', 'でぃ', 'どぅ', 'で', 'ど'],
-    'n': ['な', None, 'ぬ', 'ね', 'の'],  # に is [ɲi]
+    'n': ['な', 'に', 'ぬ', 'ね', 'の'],  # に is [ɲi], but "ni" often is too in pt-BR
     'ɲ': ['にゃ', 'に', 'にゅ', 'にぇ', 'にょ'],
     'h': ['は', None, None, 'へ', 'ほ'],  # ひ is [çi], ふ is [ɸɯ]
     'ɸ': ['ふぁ', 'ふぃ', 'ふ', 'ふぇ', 'ふぉ'],
@@ -152,6 +153,13 @@ REDUCED_CODAS = 's'  # "-es", "-os" (plurals); "-er", "-or", "-el"... are stress
 
 # when two banks tie, the earlier one wins (standard sounds the most natural)
 BANK_ORDER = ['standard', 'english', 'edge-continuous', 'extra']
+# fit points added to every candidate of a bank. the japanese ones get enough to always beat the english bank
+# when they have the sound at all (even "lu" = る, "fa" = ふぁ): one voice all the way through, like
+# utau-to-mp3/voice-synth.py. english is only left for what japanese doesn't have (codas like "¨as" and
+# nasal endings like "¨ão"). set them all to 0 to go back to "best fit wins"
+BANK_BONUS = {'standard': 10, 'extra': 10, 'edge-continuous': 8, 'english': 0}
+# "pai" as ぱ + ¨ai (japanese, a vowel sliding into another) instead of the english "- paI"
+ENGLISH_DIPHTHONGS = False
 
 
 def load_outputs():
@@ -171,8 +179,19 @@ def best(candidates, outputs):
              if cut.safe_filename(alias) in outputs[bank]]
     if not found:
         return None
-    score, bank, name = max(found, key=lambda c: (c[0], -BANK_ORDER.index(c[1])))
+    score, bank, name = max(found, key=lambda c: (c[0] + BANK_BONUS[c[1]], -BANK_ORDER.index(c[1])))
     return f"{bank}/{name}"
+
+
+def every(candidates, outputs):
+    """All the (score, "bank/name") that exist, best first: the text to speech picks between them by prosody."""
+    found = {}
+    for score, bank, alias in candidates:
+        name = f"{bank}/{cut.safe_filename(alias)}"
+        if cut.safe_filename(alias) in outputs[bank] and score + BANK_BONUS[bank] > found.get(name, -1):
+            found[name] = score + BANK_BONUS[bank]
+    return sorted(((score, name) for name, score in found.items()),
+                  key=lambda c: (-c[0], BANK_ORDER.index(c[1].split('/')[0])))
 
 
 def syllable_candidates(consonant, vowel):
@@ -192,11 +211,11 @@ def spellings(consonant, first_vowel):
     return [spelling for spelling, vowels in CONSONANTS[consonant][2] if first_vowel in vowels]
 
 
-def rows(outputs):
+def rows(outputs, pick=best):
     # plain syllables: "ba", "que", "tchau"... well, "tcha"
     for consonant, (xsampa, english, _) in CONSONANTS.items():
         for vowel, (v_ipa, v_xsampa, v_english) in VOWELS.items():
-            filename = best(syllable_candidates(consonant, vowel), outputs)
+            filename = pick(syllable_candidates(consonant, vowel), outputs)
             if not filename:
                 continue
             for spelling in spellings(consonant, vowel):
@@ -204,12 +223,12 @@ def rows(outputs):
                 en = 'gh' if english == 'g' and vowel in 'eéi' else english
                 yield spelling + vowel, en + v_english, consonant + v_ipa, xsampa + v_xsampa, filename
 
-    # diphthongs, only the english bank has them
-    for diphthong, (alias, d_ipa, d_xsampa, d_english, d_alone) in DIPHTHONGS.items():
+    # diphthongs, only the english bank has them (without them it's syllable + vowel to vowel, "pa" + "¨ai")
+    for diphthong, (alias, d_ipa, d_xsampa, d_english, d_alone) in DIPHTHONGS.items() if ENGLISH_DIPHTHONGS else ():
         for consonant, (xsampa, english, _) in CONSONANTS.items():
             fits = EN_CONSONANT_FIT[consonant]
             candidates = [(fit, 'english', f"- {en_consonant}{alias}") for en_consonant, fit in fits.items() if fit >= 2]
-            filename = best(candidates, outputs)
+            filename = pick(candidates, outputs)
             if not filename:
                 continue
             for spelling in spellings(consonant, diphthong[0]):
@@ -231,7 +250,10 @@ def rows(outputs):
             if jp_first != jp_second:
                 kana = JP_KANA[''][JP_ROW.index(jp_second)]
                 candidates.append((first_fit + second_fit, 'edge-continuous', f"{jp_first} {kana}'"))
-            filename = best(candidates, outputs)
+                # "* い": the second vowel recorded legato (after another sound). it doesn't have the first vowel
+                # in it, so it's crossfaded from it instead, like voice-synth.py does it
+                candidates.append((1 + second_fit, 'standard', f"* {kana}"))
+            filename = pick(candidates, outputs)
             if filename:
                 yield (LINK + first + second, LINK + f_english + s_english,
                        LINK + f_ipa + s_ipa, LINK + f_xsampa + s_xsampa, filename)
@@ -244,7 +266,7 @@ def rows(outputs):
         candidates = [(fit, 'english', f"{en_vowel} -") for en_vowel, fit in en_fits.items()]
         candidates.append((jp_fit, 'standard', f"* {JP_KANA[''][JP_ROW.index(jp_vowel)]}"))
         candidates.append((jp_fit, 'edge-continuous', f"{jp_vowel} R'"))
-        filename = best(candidates, outputs)
+        filename = pick(candidates, outputs)
         if filename:
             yield LINK + vowel, LINK + v_english, LINK + v_ipa, LINK + v_xsampa, filename
 
@@ -256,17 +278,17 @@ def rows(outputs):
             if vowel in REDUCED and coda in REDUCED_CODAS:
                 v_ipa, v_xsampa, v_english, en_fits, _ = REDUCED[vowel]
             candidates = [(fit, 'english', f"{en_vowel} {en_coda}-") for en_vowel, fit in en_fits.items()]
-            filename = best(candidates, outputs)
+            filename = pick(candidates, outputs)
             if filename:
                 yield (LINK + vowel + coda, LINK + v_english + c_english,
                        LINK + v_ipa + c_ipa, LINK + v_xsampa + c_xsampa, filename)
         v_ipa, v_xsampa, v_english = VOWELS[vowel]
         jp_vowel, fit = JP_VOWEL_FIT[vowel]
-        filename = best([(fit, 'extra', f"{jp_vowel}b -")], outputs)
+        filename = pick([(fit, 'extra', f"{jp_vowel}b -")], outputs)
         if filename:
             yield (LINK + vowel + 'r', LINK + v_english + R_CODA[2],
                    LINK + v_ipa + R_CODA[0], LINK + v_xsampa + R_CODA[1], filename)
-        filename = best([(fit, 'english', f"{en_vowel} r") for en_vowel, fit in EN_VOWEL_FIT[vowel].items()], outputs)
+        filename = pick([(fit, 'english', f"{en_vowel} r") for en_vowel, fit in EN_VOWEL_FIT[vowel].items()], outputs)
         if filename:
             yield (LINK + vowel + 'r' + LINK, LINK + v_english + R_GOIANO[2] + LINK,
                    LINK + v_ipa + R_GOIANO[0] + LINK, LINK + v_xsampa + R_GOIANO[1] + LINK, filename)
@@ -274,18 +296,18 @@ def rows(outputs):
     # ...and the nasal ones: "¨an", "¨ão", "¨em"...
     for rime, (n_ipa, n_xsampa, n_english, fits) in NASALS.items():
         candidates = [(fit, 'english', f"{en_vowel} N-") for en_vowel, fit in fits.items()]
-        filename = best(candidates, outputs)
+        filename = pick(candidates, outputs)
         if filename:
             yield LINK + rime, LINK + n_english, LINK + n_ipa, LINK + n_xsampa, filename
 
     # the throat r at the start of a syllable ("rato", "carro"): the h of は/ほ is over in 20 ms, so a
     # real breath goes before the syllable. "rr¨" = it glues to whatever comes after it
-    filename = best([(3, 'extra', "息1")], outputs)
+    filename = pick([(3, 'extra', "息1")], outputs)
     if filename:
         yield 'rr' + LINK, 'h' + LINK, 'h' + LINK, 'h' + LINK, filename
 
     # a lonely "s" after a coda that already used the vowel: "trens", "pers-pectiva"
-    filename = best([(3, 'english', "- s")], outputs)
+    filename = pick([(3, 'english', "- s")], outputs)
     if filename:
         yield LINK + 's', LINK + 's', LINK + 's', LINK + 's', filename
 
@@ -303,3 +325,17 @@ if __name__ == "__main__":
             writer.writerow(row + (f"{outputs[bank][name]['preutterance']:g}",))
             count += 1
     print(f"{CSV_FILE}: {count} sounds")
+
+    # every file that could be each sound, not just the best one, with how well it fits (higher = better).
+    # the text to speech picks between them by prosody (pitch, length, loudness)
+    with open(UNITS_FILE, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['ipa', 'filename', 'fit', 'preutterance'])
+        seen = set()
+        for *row, candidates in rows(outputs, pick=every):
+            for fit, filename in candidates:
+                if (row[2], filename) not in seen:
+                    seen.add((row[2], filename))
+                    bank, name = filename.split('/', 1)
+                    writer.writerow([row[2], filename, fit, f"{outputs[bank][name]['preutterance']:g}"])
+    print(f"{UNITS_FILE}: {len(seen)} units for {len({ipa for ipa, _ in seen})} sounds")
